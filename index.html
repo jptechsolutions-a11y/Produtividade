@@ -280,6 +280,19 @@
             width: 400px; max-width: 90%;
         }
 
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--primary);
+            border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         /* Responsividade */
         @media (max-width: 1024px) {
             .charts-row { grid-template-columns: 1fr; }
@@ -292,6 +305,12 @@
     </style>
 </head>
 <body>
+
+    <!-- Loading Screen -->
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p class="mt-4 text-gray-500 text-sm font-semibold">Carregando dados da Operação...</p>
+    </div>
 
     <div class="app-container">
         <!-- Sidebar -->
@@ -344,8 +363,8 @@
                         <p class="font-bold text-gray-700" id="currentDateDisplay">--/--/----</p>
                         <p class="text-xs text-gray-500">Última atualização: <span id="lastUpdate">Agora</span></p>
                     </div>
-                    <button class="bg-white p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600">
-                        <i data-feather="bell" class="w-5 h-5"></i>
+                    <button onclick="app.fetchData()" class="bg-white p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600" title="Atualizar Dados">
+                        <i data-feather="refresh-cw" class="w-5 h-5"></i>
                     </button>
                     <button class="bg-white p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600">
                         <i data-feather="settings" class="w-5 h-5"></i>
@@ -507,49 +526,17 @@
 
     <!-- ARQUIVO: script.js -->
     <script>
-        // Configuração de Variáveis de Ambiente (Simulação para Demo)
+        // --- CONFIGURAÇÃO SUPABASE ---
+        // Em um projeto Next.js real, use: process.env.NEXT_PUBLIC_SUPABASE_URL
+        // Como este é um arquivo HTML estático para demo, preencha abaixo ou configure o bundler
         const ENV = {
-            SUPABASE_URL: "NEXT_PUBLIC_SUPABASE_URL_PLACEHOLDER", // Substituir pelo real
-            SUPABASE_KEY: "NEXT_PUBLIC_SUPABASE_ANON_KEY_PLACEHOLDER",
-            META_PADRAO: 180 // Meta padrão de volumes/hora caso não tenha no banco
+            SUPABASE_URL: "NEXT_PUBLIC_SUPABASE_URL_PLACEHOLDER", // <--- COLE SUA URL AQUI PARA TESTE LOCAL
+            SUPABASE_KEY: "NEXT_PUBLIC_SUPABASE_ANON_KEY_PLACEHOLDER", // <--- COLE SUA KEY AQUI PARA TESTE LOCAL
+            META_PADRAO: 180 
         };
 
-        // --- MOCK DATA GENERATOR (Para funcionar sem o backend conectado agora) ---
-        // Em produção, isso é substituído pela chamada ao Supabase
-        const generateMockData = () => {
-            const lines = ['LINHA 1', 'LINHA 2', 'MEZANINO', 'FLOW RACK'];
-            const names = ['JOAO SILVA', 'MARIA OLIVEIRA', 'PEDRO SANTOS', 'ANA COSTA', 'CARLOS SOUZA', 'LUCAS LIMA', 'FERNANDA ROCHA'];
-            const data = [];
-            
-            for(let i=0; i<50; i++) {
-                const produtivo = names[Math.floor(Math.random() * names.length)];
-                // Simula horários (incluindo virada de noite)
-                let startH = 18 + Math.floor(Math.random() * 6); // 18:00 as 23:00
-                if(startH >= 24) startH -= 24;
-                let endH = startH + 4 + Math.floor(Math.random() * 4); // Trabalha 4 a 8 horas
-                if(endH >= 24) endH -= 24;
-
-                const startStr = `${String(startH).padStart(2, '0')}:${String(Math.floor(Math.random()*59)).padStart(2,'0')}`;
-                const endStr = `${String(endH).padStart(2, '0')}:${String(Math.floor(Math.random()*59)).padStart(2,'0')}`;
-
-                const qtd = Math.floor(Math.random() * 1200) + 400;
-                const visitas = Math.floor(Math.random() * 300) + 50;
-
-                data.push({
-                    id: i,
-                    NROEMPRESA: Math.random() > 0.5 ? 464 : 101,
-                    PRODUTIVO: produtivo,
-                    LINHA_SEPARACAO: lines[Math.floor(Math.random() * lines.length)],
-                    "Hora Inicio": startStr,
-                    HORAFIM: endStr,
-                    QTDVOLUME: qtd,
-                    QTD_VISITAS: visitas,
-                    QTDITEM: qtd * 1.5,
-                    DTAINICIO: new Date().toISOString().split('T')[0]
-                });
-            }
-            return data;
-        };
+        // Inicializa o Client do Supabase
+        const supabase = window.supabase.createClient(ENV.SUPABASE_URL, ENV.SUPABASE_KEY);
 
         // --- LOGIC ENGINE (Substitui VIEW SQL) ---
         class ProductivityEngine {
@@ -631,27 +618,53 @@
             }
 
             async init() {
-                // Initialize Feather Icons
                 feather.replace();
-                
-                // Set Date
                 document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('pt-BR');
                 document.getElementById('filterDate').valueAsDate = new Date();
 
-                // Load Data (Mocked for now)
-                const raw = generateMockData();
-                this.rawData = ProductivityEngine.enrichData(raw);
-                this.processedData = [...this.rawData];
-
-                // Populate Filters
-                this.populateDropdowns();
-
                 // Setup Listeners
                 document.getElementById('btnApplyFilters').addEventListener('click', () => this.applyFilters());
+                
+                // Fetch Data Real do Supabase
+                await this.fetchData();
 
-                // Initial Render
-                this.updateDashboard();
                 this.initColumnModal();
+            }
+
+            async fetchData() {
+                this.toggleLoading(true);
+                try {
+                    // Consulta Supabase (LIMIT 200 para performance inicial)
+                    const { data, error } = await supabase
+                        .from('separacao')
+                        .select('*')
+                        .limit(200);
+
+                    if (error) throw error;
+
+                    if (!data || data.length === 0) {
+                        console.warn("Nenhum dado encontrado no Supabase.");
+                        this.rawData = [];
+                    } else {
+                        // Processa dados reais
+                        this.rawData = ProductivityEngine.enrichData(data);
+                    }
+
+                    this.processedData = [...this.rawData];
+                    
+                    this.populateDropdowns();
+                    this.updateDashboard();
+
+                } catch (err) {
+                    console.error("Erro ao buscar dados:", err);
+                    alert("Erro ao conectar ao banco. Verifique as credenciais no console.");
+                } finally {
+                    this.toggleLoading(false);
+                }
+            }
+
+            toggleLoading(show) {
+                document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
             }
 
             populateDropdowns() {
@@ -659,20 +672,22 @@
                 const linhas = [...new Set(this.rawData.map(d => d.LINHA_SEPARACAO))];
 
                 const selFilial = document.getElementById('filterFilial');
+                selFilial.innerHTML = '<option value="all">Todas as Filiais</option>';
                 filiais.forEach(f => {
-                    selFilial.innerHTML += `<option value="${f}">${f}</option>`;
+                    if(f) selFilial.innerHTML += `<option value="${f}">${f}</option>`;
                 });
 
                 const selLinha = document.getElementById('filterLinha');
+                selLinha.innerHTML = '<option value="all">Todas</option>';
                 linhas.forEach(l => {
-                    selLinha.innerHTML += `<option value="${l}">${l}</option>`;
+                    if(l) selLinha.innerHTML += `<option value="${l}">${l}</option>`;
                 });
             }
 
             applyFilters() {
                 const filial = document.getElementById('filterFilial').value;
                 const linha = document.getElementById('filterLinha').value;
-                // Date filter logic would go here
+                // Date filter logic would go here based on DTAINICIO if format matches
 
                 this.processedData = this.rawData.filter(row => {
                     let matchFilial = filial === 'all' || row.NROEMPRESA == filial;
@@ -752,7 +767,7 @@
                                 const badgeClass = val === 'ACIMA' ? 'badge-success' : 'badge-danger';
                                 val = `<span class="badge ${badgeClass}">${val}</span>`;
                             }
-                            rowsHTML += `<td>${val}</td>`;
+                            rowsHTML += `<td>${val || '-'}</td>`;
                         }
                     });
                     rowsHTML += '</tr>';
@@ -802,7 +817,7 @@
             renderCharts(type) {
                 // Top 10 Productivos
                 const sortedData = [...this.processedData].sort((a,b) => b.computed_vol_hora - a.computed_vol_hora).slice(0, 10);
-                const labels = sortedData.map(d => d.PRODUTIVO.split(' ')[0]); // Primeiro nome
+                const labels = sortedData.map(d => (d.PRODUTIVO || 'Desconhecido').split(' ')[0]); 
                 
                 const metricKey = type === 'volume' ? 'computed_vol_hora' : 'computed_vis_hora';
                 const datasetData = sortedData.map(d => d[metricKey]);
@@ -846,7 +861,9 @@
                 // Pie Chart (Distribution by Line)
                 const lineCount = {};
                 this.processedData.forEach(d => {
-                    lineCount[d.LINHA_SEPARACAO] = (lineCount[d.LINHA_SEPARACAO] || 0) + d.QTDVOLUME;
+                    if (d.LINHA_SEPARACAO) {
+                        lineCount[d.LINHA_SEPARACAO] = (lineCount[d.LINHA_SEPARACAO] || 0) + Number(d.QTDVOLUME);
+                    }
                 });
 
                 const ctxPie = document.getElementById('pieChart').getContext('2d');

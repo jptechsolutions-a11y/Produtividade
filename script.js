@@ -1,6 +1,7 @@
 // --- CONFIGURAÇÃO ---
-// As chaves são lidas das variáveis de ambiente (padrão Vercel/Next.js/Vite)
-// Se não encontrar (ex: rodando local sem env), o sistema entra em modo MOCK.
+// Esta é a parte mais importante para funcionar na Vercel:
+// O código tenta ler as variáveis de ambiente (process.env.NEXT_PUBLIC...).
+// Se não encontrar (ex: rodando local sem servidor), ele entra em modo MOCK (demonstração).
 const SUPABASE_URL = typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_URL 
     ? process.env.NEXT_PUBLIC_SUPABASE_URL 
     : ""; 
@@ -20,7 +21,7 @@ const AppState = {
         linha: 'all'
     },
     mode: 'volume', // 'volume' ou 'visitas'
-    user: 'admin', // Usuário padrão para bypass do login
+    user: 'admin', // Usuário padrão (bypass do login)
     columns: {
         'PRODUTIVO': { label: 'Produtivo', visible: true },
         'EQUIPE': { label: 'Equipe', visible: false },
@@ -40,33 +41,33 @@ let supabase = null;
 document.addEventListener('DOMContentLoaded', () => {
     initSupabase();
     
-    // Login removido - Inicia carregamento direto
+    // Login foi removido, então iniciamos o carregamento direto
     loadData();
     
-    // Filtros Listeners
+    // Listeners dos Filtros
     document.getElementById('filterFilial').addEventListener('change', (e) => applyFilter('filial', e.target.value));
     document.getElementById('filterDate').addEventListener('change', (e) => applyFilter('data', e.target.value));
     document.getElementById('filterLinha').addEventListener('change', (e) => applyFilter('linha', e.target.value));
     
-    // Set Date Filter to Today
+    // Define o filtro de data para hoje
     document.getElementById('filterDate').value = AppState.filters.data;
 });
 
 function initSupabase() {
     if (SUPABASE_URL && SUPABASE_KEY) {
-        // Tenta inicializar apenas se as chaves existirem
         try {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log("JP PRODUTIVIDADE: Conexão Supabase iniciada.");
+            console.log("JP PRODUTIVIDADE: Conexão Supabase iniciada via Vercel Env Vars.");
         } catch (e) {
             console.error("Erro ao iniciar Supabase:", e);
         }
     } else {
-        console.warn("JP PRODUTIVIDADE: Chaves não encontradas. Rodando em modo MOCK.");
+        console.warn("JP PRODUTIVIDADE: Chaves não encontradas. Rodando em modo MOCK (Dados Fictícios).");
     }
 }
 
 function logout() {
+    // Apenas recarrega a página para resetar (simples reload)
     location.reload();
 }
 
@@ -78,28 +79,25 @@ async function loadData() {
         let rawData = [];
 
         if (supabase) {
-            // Fetch Real Supabase
-            // Nota: O filtro de data seria aplicado no servidor idealmente,
-            // mas para flexibilidade de cálculos, buscaremos o dia e processaremos.
+            // Conexão Real com Supabase
+            // Buscamos tudo da tabela 'sepprodutividade'
             const { data, error } = await supabase
                 .from('sepprodutividade')
-                .select('*')
-                // Otimização: Filtrar por data no banco se a tabela for grande
-                // .eq('DTAINICIO', AppState.filters.data) 
+                .select('*');
                 
             if (error) throw error;
             rawData = data;
         } else {
-            // Mock Data Generator
+            // Gerador de Dados Fakes (Caso não tenha chaves configuradas)
             rawData = generateMockData();
         }
 
         AppState.data = rawData;
         
-        // Popula Filtros de UI baseados nos dados
+        // Popula os selects de filtro com base nos dados recebidos
         populateFiltersUI(rawData);
         
-        // Aplica Filtros e Recalcula
+        // Aplica filtros iniciais e calcula métricas
         processData();
 
     } catch (error) {
@@ -153,7 +151,6 @@ function processData() {
         entry.QTD_VISITAS += (parseInt(row.QTD_VISITAS) || 0);
         
         // Lógica de tempo: Atualiza para pegar o range total do dia
-        // Para precisão absoluta, calcularíamos delta de cada linha e somaríamos.
         if (row.HORAINICIO < entry.startTime) entry.startTime = row.HORAINICIO;
         if (row.HORAFIM > entry.endTime) entry.endTime = row.HORAFIM;
     });
@@ -163,16 +160,14 @@ function processData() {
         // Cálculo de horas trabalhadas (hh:mm -> decimal)
         const hours = calculateHoursDiff(m.startTime, m.endTime);
         
-        // Regra de Negócio: Se horas < 0.5, considerar 0.5 para não explodir a média? 
-        // Ou usar regra crua. Usaremos crua mas protegida de zero.
+        // Evita divisão por zero ou horas muito pequenas
         const safeHours = hours > 0 ? hours : 1; 
 
         const prodHora = Math.round(m.QTDVOLUME / safeHours);
         const visitasHora = Math.round(m.QTD_VISITAS / safeHours);
 
-        // META DA FILIAL (Lógica Mockada ou Média das Médias)
-        // Aqui você pode injetar a lógica de meta dinâmica
-        const metaVolume = 120; // Exemplo fixo ou calculado
+        // META DA FILIAL (Exemplo fixo, pode vir do banco depois)
+        const metaVolume = 120; 
         
         return {
             ...m,
@@ -258,8 +253,7 @@ function renderChart() {
     const ctx = document.getElementById('mainChart').getContext('2d');
     
     // Preparar dados
-    // Limitar a top 20 para o gráfico não ficar poluido
-    const chartData = AppState.metrics.slice(0, 20);
+    const chartData = AppState.metrics.slice(0, 20); // Top 20 para não poluir
     
     const labels = chartData.map(m => m.PRODUTIVO.split(' ')[0]); // Apenas primeiro nome
     const dataValues = chartData.map(m => AppState.mode === 'volume' ? m.PRODUTIVIDADE_HORA : m.VISITAS_HORA);
@@ -445,10 +439,8 @@ function generateMockData() {
 }
 
 function populateFiltersUI(data) {
-    // Filiais únicas
     const filiais = [...new Set(data.map(d => d.NROEMPRESA))];
     const selFilial = document.getElementById('filterFilial');
-    // Keep first option
     const firstOpt = selFilial.options[0];
     selFilial.innerHTML = '';
     selFilial.appendChild(firstOpt);
@@ -459,7 +451,6 @@ function populateFiltersUI(data) {
         selFilial.appendChild(opt);
     });
 
-    // Linhas únicas
     const linhas = [...new Set(data.map(d => d.LINHA_SEPARACAO))];
     const selLinha = document.getElementById('filterLinha');
     const firstOptL = selLinha.options[0];

@@ -3,894 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JP PRODUTIVIDADE | Painel de Separação</title>
-
-    <!-- Tailwind CSS (Via CDN para prototipagem rápida, em prod usar PostCSS) -->
+    <title>JP PRODUTIVIDADE - Dashboard Operacional</title>
+    
+    <!-- Estilos Externos -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Bibliotecas -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js para Gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Feather Icons -->
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-
-    <!-- Supabase Client (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- ARQUIVO: style.css -->
-    <style>
-        /* Variáveis Globais de Cor (Baseadas no JP Tech Solutions) */
-        :root {
-            --primary: #00D4AA;
-            --secondary: #00B4D8;
-            --accent: #0077B6;
-            --dark: #023047;
-            --darker: #011627;
-            --light: #90E0EF;
-            --text-main: #334155;
-            --bg-body: #f4f7fa;
-            
-            --gradient-primary: linear-gradient(135deg, #00D4AA 0%, #00B4D8 50%, #0077B6 100%);
-            --gradient-card: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        }
-
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            overflow: hidden; /* App-like feel */
-        }
-
-        /* --- Layout & Sidebar --- */
-        .app-container {
-            display: flex;
-            height: 100vh;
-        }
-
-        .sidebar {
-            width: 260px;
-            background: var(--darker);
-            color: white;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            transition: width 0.3s ease;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
-            z-index: 50;
-        }
-
-        .sidebar-header {
-            padding: 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.2);
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 14px 24px;
-            color: rgba(255,255,255,0.7);
-            transition: all 0.2s;
-            cursor: pointer;
-            border-left: 4px solid transparent;
-        }
-
-        .nav-item:hover, .nav-item.active {
-            background: rgba(0, 180, 216, 0.15);
-            color: white;
-            border-left-color: var(--primary);
-        }
-
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .top-bar {
-            background: white;
-            padding: 16px 32px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 40;
-        }
-
-        /* --- Componentes --- */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            padding: 24px 32px;
-        }
-
-        .kpi-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-            border: 1px solid rgba(0,0,0,0.04);
-            transition: transform 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px rgba(0,0,0,0.05);
-        }
-
-        .kpi-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--gradient-primary);
-        }
-
-        .kpi-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--dark);
-            margin-top: 8px;
-        }
-
-        .kpi-label {
-            font-size: 0.875rem;
-            color: #64748b;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .kpi-trend {
-            font-size: 0.85rem;
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .trend-up { color: #10b981; }
-        .trend-down { color: #ef4444; }
-
-        /* --- Filtros --- */
-        .filters-bar {
-            background: white;
-            padding: 20px 32px;
-            border-bottom: 1px solid #e2e8f0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            align-items: end;
-        }
-
-        .form-control {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .form-control label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--dark);
-            text-transform: uppercase;
-        }
-
-        .input-field {
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            background: #f8fafc;
-            transition: border-color 0.2s;
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: var(--secondary);
-            background: white;
-        }
-
-        /* --- Charts & Tables --- */
-        .content-area {
-            padding: 0 32px 32px 32px;
-        }
-
-        .charts-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 24px;
-            margin-bottom: 24px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-            border: 1px solid #e2e8f0;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--dark);
-        }
-
-        /* Tabela Dinâmica */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-
-        th {
-            background: #f1f5f9;
-            color: var(--dark);
-            font-weight: 600;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 2px solid #e2e8f0;
-            white-space: nowrap;
-        }
-
-        td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            color: #475569;
-        }
-
-        tr:hover {
-            background: #f8fafc;
-        }
-
-        .badge {
-            padding: 4px 8px;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-success { background: #d1fae5; color: #065f46; }
-        .badge-warning { background: #fef3c7; color: #92400e; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
-
-        /* Modal de Colunas */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 100;
-            display: none; justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background: white; padding: 24px; border-radius: 12px;
-            width: 400px; max-width: 90%;
-        }
-
-        /* Loading Overlay */
-        #loadingOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 200;
-            display: flex; justify-content: center; align-items: center;
-            flex-direction: column;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3; border-top: 4px solid var(--primary);
-            border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Responsividade */
-        @media (max-width: 1024px) {
-            .charts-row { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 768px) {
-            .app-container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; display: none; } /* Mobile menu needed logic */
-            .filters-bar { grid-template-columns: 1fr 1fr; }
-        }
-    </style>
 </head>
-<body>
+<body class="bg-gray-100 font-sans">
 
-    <!-- Loading Screen -->
-    <div id="loadingOverlay">
-        <div class="spinner"></div>
-        <p class="mt-4 text-gray-500 text-sm font-semibold">Carregando dados da Operação...</p>
+    <!-- Tela de Login (Simulada para estrutura) -->
+    <div id="loginContainer" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2 style="color: var(--dark);">JP PRODUTIVIDADE</h2>
+                <p>Intelligence & Performance</p>
+            </div>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group mb-4">
+                    <input type="text" id="username" placeholder="Usuário" class="w-full p-3 border rounded" required>
+                </div>
+                <div class="form-group mb-4">
+                    <input type="password" id="password" placeholder="Senha" class="w-full p-3 border rounded" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">ACESSAR PAINEL</button>
+            </form>
+            <div id="loginAlert" class="mt-4"></div>
+        </div>
     </div>
 
-    <div class="app-container">
+    <!-- Sistema Principal -->
+    <div id="mainSystem" class="flex h-screen hidden">
+        
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1 class="text-xl font-bold tracking-wider">JP<span style="color:var(--primary)">PROD</span></h1>
-                <p class="text-xs text-gray-400 mt-1">Produtividade Operacional</p>
-            </div>
-            <nav class="flex-1 py-6">
-                <div class="nav-item active">
-                    <i data-feather="bar-chart-2" class="w-5 h-5 mr-3"></i>
-                    <span>Separação</span>
-                </div>
-                <div class="nav-item">
-                    <i data-feather="check-square" class="w-5 h-5 mr-3"></i>
-                    <span>Conferência</span>
-                </div>
-                <div class="nav-item">
-                    <i data-feather="truck" class="w-5 h-5 mr-3"></i>
-                    <span>Carregamento</span>
-                </div>
-                <div class="nav-item">
-                    <i data-feather="package" class="w-5 h-5 mr-3"></i>
-                    <span>Expedição</span>
-                </div>
-            </nav>
-            <div class="p-6 border-t border-gray-700">
+            <div class="p-6 border-b border-gray-800">
                 <div class="flex items-center">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-teal-400 flex items-center justify-center font-bold text-white text-xs">
-                        JP
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-white">Administrador</p>
-                        <p class="text-xs text-gray-400">Logística</p>
-                    </div>
+                    <i data-feather="bar-chart-2" class="text-primary mr-3"></i>
+                    <h1 class="text-xl font-bold text-white">JP Analytics</h1>
                 </div>
+                <p class="text-sm text-gray-400 mt-2">Base: <span id="baseAtual" class="text-white font-bold">SEPARAÇÃO</span></p>
             </div>
+            <nav class="p-4 space-y-2">
+                <a href="#" class="nav-item active flex items-center p-3 rounded-lg" onclick="switchView('dashboard')">
+                    <i data-feather="grid" class="mr-3"></i> Dashboard
+                </a>
+                <a href="#" class="nav-item flex items-center p-3 rounded-lg" onclick="switchView('analise')">
+                    <i data-feather="list" class="mr-3"></i> Tabela Analítica
+                </a>
+                <a href="#" class="nav-item flex items-center p-3 rounded-lg mt-auto text-red-400 hover:bg-gray-800" onclick="logout()">
+                    <i data-feather="log-out" class="mr-3"></i> Sair
+                </a>
+            </nav>
         </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <header class="top-bar">
-                <div class="flex items-center text-gray-800">
-                    <i data-feather="menu" class="w-6 h-6 mr-4 cursor-pointer lg:hidden"></i>
-                    <h2 class="text-xl font-bold text-slate-700">Dashboard de Separação</h2>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="text-sm text-right hidden sm:block">
-                        <p class="font-bold text-gray-700" id="currentDateDisplay">--/--/----</p>
-                        <p class="text-xs text-gray-500">Última atualização: <span id="lastUpdate">Agora</span></p>
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 overflow-auto bg-gray-50 main-content">
+            
+            <!-- Barra Superior / Filtros -->
+            <header class="bg-white shadow-sm sticky top-0 z-20">
+                <div class="px-6 py-4">
+                    <div class="flex flex-wrap justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">Painel de Produtividade</h2>
+                        <div class="flex items-center space-x-2 text-sm text-gray-500">
+                            <span id="lastUpdate">Atualizado: Agora</span>
+                            <button onclick="refreshData()" class="p-2 hover:bg-gray-100 rounded-full"><i data-feather="refresh-cw" class="w-4 h-4"></i></button>
+                        </div>
                     </div>
-                    <button onclick="app.fetchData()" class="bg-white p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600" title="Atualizar Dados">
-                        <i data-feather="refresh-cw" class="w-5 h-5"></i>
-                    </button>
-                    <button class="bg-white p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600">
-                        <i data-feather="settings" class="w-5 h-5"></i>
-                    </button>
+
+                    <!-- Filtros Dinâmicos -->
+                    <div class="filters-grid">
+                        <div class="form-group">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Filial</label>
+                            <select id="filterFilial" class="w-full p-2 border rounded text-sm bg-gray-50">
+                                <option value="all">Todas as Filiais</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Período</label>
+                            <input type="date" id="filterDate" class="w-full p-2 border rounded text-sm bg-gray-50">
+                        </div>
+                        <div class="form-group">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Linha</label>
+                            <select id="filterLinha" class="w-full p-2 border rounded text-sm bg-gray-50">
+                                <option value="all">Todas as Linhas</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Visualização</label>
+                            <div class="flex bg-gray-200 rounded p-1">
+                                <button onclick="setMetricMode('volume')" id="btnModeVolume" class="flex-1 text-xs py-1 rounded bg-white shadow font-bold text-primary">Volume</button>
+                                <button onclick="setMetricMode('visitas')" id="btnModeVisitas" class="flex-1 text-xs py-1 rounded text-gray-600">Visitas</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
-            <!-- Filtros -->
-            <section class="filters-bar">
-                <div class="form-control">
-                    <label>Filial</label>
-                    <select id="filterFilial" class="input-field">
-                        <option value="all">Todas as Filiais</option>
-                        <!-- Populated by JS -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label>Período</label>
-                    <input type="date" id="filterDate" class="input-field">
-                </div>
-                <div class="form-control">
-                    <label>Linha Separação</label>
-                    <select id="filterLinha" class="input-field">
-                        <option value="all">Todas</option>
-                        <!-- Populated by JS -->
-                    </select>
-                </div>
-                <div class="form-control">
-                    <label>Análise</label>
-                    <select id="filterAnalysisType" class="input-field">
-                        <option value="volume">Por Volume</option>
-                        <option value="visitas">Por Visitas</option>
-                    </select>
-                </div>
-                <div class="form-control flex-row items-end pb-1">
-                    <button id="btnApplyFilters" class="bg-gradient-to-r from-teal-400 to-blue-500 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:shadow-lg transition-all w-full">
-                        Filtrar
-                    </button>
-                </div>
-            </section>
-
-            <!-- Cards de Indicadores (KPIs) -->
-            <div class="kpi-grid" id="kpiContainer">
-                <!-- KPI 1 -->
-                <div class="kpi-card">
-                    <div class="flex justify-between items-start">
-                        <span class="kpi-label">Total Volume</span>
-                        <div class="p-2 bg-blue-50 rounded-lg text-blue-500"><i data-feather="box" class="w-4 h-4"></i></div>
-                    </div>
-                    <div class="kpi-value" id="kpiTotalVolume">0</div>
-                    <div class="kpi-trend">
-                        <span class="text-gray-400 text-xs">Unidades separadas hoje</span>
-                    </div>
-                </div>
+            <div class="p-6 space-y-6">
                 
-                <!-- KPI 2 -->
-                <div class="kpi-card">
-                    <div class="flex justify-between items-start">
-                        <span class="kpi-label">Média Produtividade/H</span>
-                        <div class="p-2 bg-teal-50 rounded-lg text-teal-500"><i data-feather="activity" class="w-4 h-4"></i></div>
+                <!-- KPIs Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Total -->
+                    <div class="stat-card-dash relative overflow-hidden">
+                        <div class="z-10 relative">
+                            <p class="text-sm opacity-80">Total Realizado</p>
+                            <h3 class="text-3xl font-bold mt-1" id="kpiTotal">0</h3>
+                            <p class="text-xs mt-2 flex items-center">
+                                <span class="bg-white/20 px-2 py-0.5 rounded mr-2">Diário</span>
+                                <span id="kpiTotalDelta">--</span>
+                            </p>
+                        </div>
+                        <div class="absolute right-[-20px] bottom-[-20px] opacity-10">
+                            <i data-feather="package" class="w-32 h-32"></i>
+                        </div>
                     </div>
-                    <div class="kpi-value" id="kpiProdHora">0</div>
-                    <div class="kpi-trend" id="kpiMetaTrend">
-                        <!-- JS injected -->
-                    </div>
-                </div>
 
-                <!-- KPI 3 -->
-                <div class="kpi-card">
-                    <div class="flex justify-between items-start">
-                        <span class="kpi-label">Total Visitas</span>
-                        <div class="p-2 bg-purple-50 rounded-lg text-purple-500"><i data-feather="map-pin" class="w-4 h-4"></i></div>
+                    <!-- Produtividade / Hora -->
+                    <div class="stat-card-dash relative overflow-hidden" style="background: var(--accent-gradient);">
+                        <div class="z-10 relative">
+                            <p class="text-sm opacity-80" id="labelProdHora">Volumes / Hora</p>
+                            <h3 class="text-3xl font-bold mt-1" id="kpiProdHora">0</h3>
+                            <p class="text-xs mt-2">Média da Equipe</p>
+                        </div>
+                        <div class="absolute right-[-20px] bottom-[-20px] opacity-10">
+                            <i data-feather="clock" class="w-32 h-32"></i>
+                        </div>
                     </div>
-                    <div class="kpi-value" id="kpiTotalVisitas">0</div>
-                     <div class="kpi-trend">
-                        <span class="text-gray-400 text-xs">Endereços visitados</span>
-                    </div>
-                </div>
 
-                 <!-- KPI 4 -->
-                 <div class="kpi-card">
-                    <div class="flex justify-between items-start">
-                        <span class="kpi-label">Equipe Ativa</span>
-                        <div class="p-2 bg-orange-50 rounded-lg text-orange-500"><i data-feather="users" class="w-4 h-4"></i></div>
-                    </div>
-                    <div class="kpi-value" id="kpiActiveUsers">0</div>
-                    <div class="kpi-trend">
-                         <span class="text-gray-400 text-xs">Colaboradores no turno</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="content-area">
-                <!-- Gráficos -->
-                <div class="charts-row">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Produtividade x Meta (Top 10)</h3>
-                            <div class="flex gap-2">
-                                <span class="text-xs font-bold text-gray-400 flex items-center"><span class="w-2 h-2 rounded-full bg-teal-400 mr-1"></span> Realizado</span>
-                                <span class="text-xs font-bold text-gray-400 flex items-center"><span class="w-2 h-2 rounded-full bg-gray-300 mr-1"></span> Meta</span>
+                    <!-- Meta -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm font-semibold">Meta da Filial</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1" id="kpiMeta">0</h3>
                             </div>
+                            <span class="p-2 bg-green-50 text-green-600 rounded-lg">
+                                <i data-feather="target" class="w-5 h-5"></i>
+                            </span>
+                        </div>
+                        <div class="mt-4">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-gray-500">Atingimento</span>
+                                <span class="font-bold text-primary" id="kpiPercMeta">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div id="kpiProgressBar" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Equipe -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <p class="text-gray-500 text-sm font-semibold">Status Equipe</p>
+                            <i data-feather="users" class="text-gray-400 w-5 h-5"></i>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-center">
+                            <div class="p-2 bg-green-50 rounded-lg border border-green-100">
+                                <span class="block text-lg font-bold text-green-600" id="kpiAcimaMedia">0</span>
+                                <span class="text-xs text-green-700">Acima Média</span>
+                            </div>
+                            <div class="p-2 bg-red-50 rounded-lg border border-red-100">
+                                <span class="block text-lg font-bold text-red-600" id="kpiAbaixoMedia">0</span>
+                                <span class="text-xs text-red-700">Abaixo Média</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Gráfico Principal (Ranking) -->
+                    <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-gray-700">Produtividade por Colaborador</h3>
+                            <select id="chartSort" class="text-xs border rounded p-1">
+                                <option value="desc">Maior para Menor</option>
+                                <option value="asc">Menor para Maior</option>
+                            </select>
                         </div>
                         <div class="relative h-64 w-full">
                             <canvas id="mainChart"></canvas>
                         </div>
                     </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Distribuição por Linha</h3>
-                        </div>
-                        <div class="relative h-64 w-full flex justify-center">
-                            <canvas id="pieChart"></canvas>
+
+                    <!-- Top 5 e Comparativo -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                        <h3 class="font-bold text-gray-700 mb-4">Top 5 - Performance</h3>
+                        <div id="top5List" class="flex-1 overflow-y-auto space-y-3">
+                            <!-- Injetado via JS -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Tabela Analítica -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Detalhamento por Produtivo</h3>
+                <!-- Tabela Dinâmica -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-gray-700 flex items-center">
+                            <i data-feather="database" class="w-4 h-4 mr-2 text-primary"></i> 
+                            Detalhamento Analítico
+                        </h3>
                         <div class="flex gap-2">
-                            <button onclick="app.exportCSV()" class="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800">
-                                <i data-feather="download" class="w-4 h-4 mr-1"></i> Exportar
+                            <button class="btn-outline text-xs px-3 py-1 rounded border border-gray-300 hover:bg-gray-100" onclick="toggleColumns()">
+                                <i data-feather="settings" class="w-3 h-3 inline mr-1"></i> Colunas
                             </button>
-                            <button onclick="app.toggleColumnModal()" class="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800">
-                                <i data-feather="columns" class="w-4 h-4 mr-1"></i> Colunas
+                            <button class="btn-outline text-xs px-3 py-1 rounded border border-primary text-primary hover:bg-primary hover:text-white transition" onclick="exportCSV()">
+                                <i data-feather="download" class="w-3 h-3 inline mr-1"></i> Exportar
                             </button>
                         </div>
                     </div>
-                    <div class="table-container">
-                        <table id="mainTable">
-                            <thead>
-                                <!-- JS Generated -->
+                    
+                    <!-- Configuração de Colunas (Hidden by default) -->
+                    <div id="columnConfig" class="hidden p-4 bg-gray-100 border-b border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                        <!-- Injetado via JS -->
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                                <tr id="tableHeader">
+                                    <!-- Injetado via JS -->
+                                </tr>
                             </thead>
-                            <tbody>
-                                <!-- JS Generated -->
+                            <tbody id="tableBody" class="divide-y divide-gray-100">
+                                <!-- Injetado via JS -->
                             </tbody>
                         </table>
                     </div>
+                    <div class="p-3 bg-gray-50 text-xs text-center text-gray-500" id="tableFooter">
+                        Mostrando todos os registros
+                    </div>
                 </div>
+
             </div>
         </main>
     </div>
 
-    <!-- Modal de Configuração de Colunas -->
-    <div id="columnModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="font-bold text-lg mb-4 text-gray-800">Configurar Colunas</h3>
-            <div id="columnToggles" class="grid grid-cols-2 gap-3 mb-6">
-                <!-- JS generated checkboxes -->
-            </div>
-            <div class="flex justify-end gap-2">
-                <button onclick="app.toggleColumnModal()" class="px-4 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-700">Fechar</button>
-                <button onclick="app.renderTable()" class="px-4 py-2 bg-blue-500 rounded-lg text-sm font-bold text-white">Aplicar</button>
-            </div>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+        <div class="text-center">
+            <div class="spinner border-4 border-primary border-t-transparent rounded-full w-12 h-12 mx-auto animate-spin mb-4"></div>
+            <p class="text-primary font-bold animate-pulse">Processando Dados...</p>
         </div>
     </div>
 
-    <!-- ARQUIVO: script.js -->
+    <!-- Scripts do Projeto -->
+    <script src="script.js"></script>
     <script>
-        // --- CONFIGURAÇÃO SUPABASE ---
-        // Em um projeto Next.js real, use: process.env.NEXT_PUBLIC_SUPABASE_URL
-        // Como este é um arquivo HTML estático para demo, preencha abaixo ou configure o bundler
-        const ENV = {
-            SUPABASE_URL: "NEXT_PUBLIC_SUPABASE_URL_PLACEHOLDER", // <--- COLE SUA URL AQUI PARA TESTE LOCAL
-            SUPABASE_KEY: "NEXT_PUBLIC_SUPABASE_ANON_KEY_PLACEHOLDER", // <--- COLE SUA KEY AQUI PARA TESTE LOCAL
-            META_PADRAO: 180 
-        };
-
-        // Inicializa o Client do Supabase
-        const supabase = window.supabase.createClient(ENV.SUPABASE_URL, ENV.SUPABASE_KEY);
-
-        // --- LOGIC ENGINE (Substitui VIEW SQL) ---
-        class ProductivityEngine {
-            
-            static calculateTimeDiff(start, end) {
-                if(!start || !end) return 0;
-                
-                const [h1, m1] = start.split(':').map(Number);
-                const [h2, m2] = end.split(':').map(Number);
-                
-                let minutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-                
-                // Tratamento de virada de dia (ex: 23:00 -> 02:00)
-                if (minutes < 0) {
-                    minutes += 24 * 60;
-                }
-                
-                // Retorna horas decimais
-                return minutes / 60;
-            }
-
-            static enrichData(rawData) {
-                return rawData.map(row => {
-                    const horasTrabalhadas = this.calculateTimeDiff(row['Hora Inicio'], row['HORAFIM']);
-                    // Evitar divisão por zero
-                    const hoursSafe = horasTrabalhadas > 0 ? horasTrabalhadas : 1; 
-
-                    const volHora = Math.round(row.QTDVOLUME / hoursSafe);
-                    const visHora = Math.round(row.QTD_VISITAS / hoursSafe);
-                    
-                    // Meta (Lógica fictícia baseada na média global)
-                    const meta = ENV.META_PADRAO; 
-                    const performance = (volHora / meta) * 100;
-                    
-                    return {
-                        ...row,
-                        computed_horas: horasTrabalhadas.toFixed(2),
-                        computed_vol_hora: volHora,
-                        computed_vis_hora: visHora,
-                        computed_status: volHora >= meta ? 'ACIMA' : 'ABAIXO',
-                        computed_meta: meta,
-                        computed_performance: performance
-                    };
-                });
-            }
-
-            static getAggregates(data) {
-                const totalVol = data.reduce((acc, curr) => acc + Number(curr.QTDVOLUME || 0), 0);
-                const totalVis = data.reduce((acc, curr) => acc + Number(curr.QTD_VISITAS || 0), 0);
-                const totalHours = data.reduce((acc, curr) => acc + Number(curr.computed_horas || 0), 0);
-                
-                return {
-                    totalVol,
-                    totalVis,
-                    mediaVolHora: totalHours > 0 ? Math.round(totalVol / totalHours) : 0,
-                    activeUsers: new Set(data.map(d => d.PRODUTIVO)).size
-                };
-            }
-        }
-
-        // --- DASHBOARD APP CONTROLLER ---
-        class DashboardApp {
-            constructor() {
-                this.rawData = [];
-                this.processedData = [];
-                this.charts = {};
-                this.columns = [
-                    { key: 'PRODUTIVO', label: 'Produtivo', visible: true },
-                    { key: 'NROEMPRESA', label: 'Filial', visible: true },
-                    { key: 'LINHA_SEPARACAO', label: 'Linha', visible: true },
-                    { key: 'Hora Inicio', label: 'Início', visible: true },
-                    { key: 'HORAFIM', label: 'Fim', visible: true },
-                    { key: 'computed_horas', label: 'Horas Trab.', visible: true },
-                    { key: 'QTDVOLUME', label: 'Volume Total', visible: true },
-                    { key: 'computed_vol_hora', label: 'Vol/Hora', visible: true },
-                    { key: 'computed_vis_hora', label: 'Visitas/Hora', visible: true },
-                    { key: 'computed_status', label: 'Status', visible: true }
-                ];
-            }
-
-            async init() {
-                feather.replace();
-                document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('pt-BR');
-                document.getElementById('filterDate').valueAsDate = new Date();
-
-                // Setup Listeners
-                document.getElementById('btnApplyFilters').addEventListener('click', () => this.applyFilters());
-                
-                // Fetch Data Real do Supabase
-                await this.fetchData();
-
-                this.initColumnModal();
-            }
-
-            async fetchData() {
-                this.toggleLoading(true);
-                try {
-                    // Consulta Supabase (LIMIT 200 para performance inicial)
-                    const { data, error } = await supabase
-                        .from('separacao')
-                        .select('*')
-                        .limit(200);
-
-                    if (error) throw error;
-
-                    if (!data || data.length === 0) {
-                        console.warn("Nenhum dado encontrado no Supabase.");
-                        this.rawData = [];
-                    } else {
-                        // Processa dados reais
-                        this.rawData = ProductivityEngine.enrichData(data);
-                    }
-
-                    this.processedData = [...this.rawData];
-                    
-                    this.populateDropdowns();
-                    this.updateDashboard();
-
-                } catch (err) {
-                    console.error("Erro ao buscar dados:", err);
-                    alert("Erro ao conectar ao banco. Verifique as credenciais no console.");
-                } finally {
-                    this.toggleLoading(false);
-                }
-            }
-
-            toggleLoading(show) {
-                document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
-            }
-
-            populateDropdowns() {
-                const filiais = [...new Set(this.rawData.map(d => d.NROEMPRESA))];
-                const linhas = [...new Set(this.rawData.map(d => d.LINHA_SEPARACAO))];
-
-                const selFilial = document.getElementById('filterFilial');
-                selFilial.innerHTML = '<option value="all">Todas as Filiais</option>';
-                filiais.forEach(f => {
-                    if(f) selFilial.innerHTML += `<option value="${f}">${f}</option>`;
-                });
-
-                const selLinha = document.getElementById('filterLinha');
-                selLinha.innerHTML = '<option value="all">Todas</option>';
-                linhas.forEach(l => {
-                    if(l) selLinha.innerHTML += `<option value="${l}">${l}</option>`;
-                });
-            }
-
-            applyFilters() {
-                const filial = document.getElementById('filterFilial').value;
-                const linha = document.getElementById('filterLinha').value;
-                // Date filter logic would go here based on DTAINICIO if format matches
-
-                this.processedData = this.rawData.filter(row => {
-                    let matchFilial = filial === 'all' || row.NROEMPRESA == filial;
-                    let matchLinha = linha === 'all' || row.LINHA_SEPARACAO === linha;
-                    return matchFilial && matchLinha;
-                });
-
-                this.updateDashboard();
-            }
-
-            updateDashboard() {
-                const aggs = ProductivityEngine.getAggregates(this.processedData);
-                const analysisType = document.getElementById('filterAnalysisType').value; // 'volume' or 'visitas'
-
-                // 1. Update KPIs
-                this.animateValue('kpiTotalVolume', aggs.totalVol);
-                this.animateValue('kpiTotalVisitas', aggs.totalVis);
-                this.animateValue('kpiProdHora', aggs.mediaVolHora);
-                this.animateValue('kpiActiveUsers', aggs.activeUsers);
-
-                const trendEl = document.getElementById('kpiMetaTrend');
-                if (aggs.mediaVolHora >= ENV.META_PADRAO) {
-                    trendEl.innerHTML = `<span class="trend-up"><i data-feather="trending-up" class="w-3 h-3"></i> ${((aggs.mediaVolHora/ENV.META_PADRAO)*100 - 100).toFixed(1)}%</span> acima da Meta`;
-                } else {
-                    trendEl.innerHTML = `<span class="trend-down"><i data-feather="trending-down" class="w-3 h-3"></i> ${Math.abs((aggs.mediaVolHora/ENV.META_PADRAO)*100 - 100).toFixed(1)}%</span> abaixo da Meta`;
-                }
-                feather.replace();
-
-                // 2. Render Table
-                this.renderTable();
-
-                // 3. Render Charts
-                this.renderCharts(analysisType);
-                
-                // Timestamp
-                document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString('pt-BR');
-            }
-
-            animateValue(id, end) {
-                const obj = document.getElementById(id);
-                const start = parseInt(obj.innerHTML.replace(/\D/g,'')) || 0;
-                if(start === end) return;
-                
-                const duration = 1000;
-                let startTimestamp = null;
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString('pt-BR');
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    }
-                };
-                window.requestAnimationFrame(step);
-            }
-
-            renderTable() {
-                const thead = document.querySelector('#mainTable thead');
-                const tbody = document.querySelector('#mainTable tbody');
-                
-                // Headers
-                let headersHTML = '<tr>';
-                this.columns.forEach(col => {
-                    if(col.visible) headersHTML += `<th>${col.label}</th>`;
-                });
-                headersHTML += '</tr>';
-                thead.innerHTML = headersHTML;
-
-                // Body
-                let rowsHTML = '';
-                this.processedData.forEach(row => {
-                    rowsHTML += '<tr>';
-                    this.columns.forEach(col => {
-                        if(col.visible) {
-                            let val = row[col.key];
-                            if (col.key === 'computed_status') {
-                                const badgeClass = val === 'ACIMA' ? 'badge-success' : 'badge-danger';
-                                val = `<span class="badge ${badgeClass}">${val}</span>`;
-                            }
-                            rowsHTML += `<td>${val || '-'}</td>`;
-                        }
-                    });
-                    rowsHTML += '</tr>';
-                });
-                tbody.innerHTML = rowsHTML;
-            }
-
-            initColumnModal() {
-                const container = document.getElementById('columnToggles');
-                container.innerHTML = '';
-                this.columns.forEach((col, idx) => {
-                    container.innerHTML += `
-                        <label class="flex items-center space-x-2">
-                            <input type="checkbox" ${col.visible ? 'checked' : ''} 
-                                onchange="app.columns[${idx}].visible = this.checked">
-                            <span class="text-sm">${col.label}</span>
-                        </label>
-                    `;
-                });
-            }
-
-            toggleColumnModal() {
-                const el = document.getElementById('columnModal');
-                el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
-            }
-
-            exportCSV() {
-                let csvContent = "data:text/csv;charset=utf-8,";
-                
-                // Header
-                csvContent += this.columns.map(c => c.label).join(",") + "\r\n";
-                
-                // Rows
-                this.processedData.forEach(row => {
-                    let rowStr = this.columns.map(col => row[col.key]).join(",");
-                    csvContent += rowStr + "\r\n";
-                });
-
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", "producao_separacao.csv");
-                document.body.appendChild(link);
-                link.click();
-            }
-
-            renderCharts(type) {
-                // Top 10 Productivos
-                const sortedData = [...this.processedData].sort((a,b) => b.computed_vol_hora - a.computed_vol_hora).slice(0, 10);
-                const labels = sortedData.map(d => (d.PRODUTIVO || 'Desconhecido').split(' ')[0]); 
-                
-                const metricKey = type === 'volume' ? 'computed_vol_hora' : 'computed_vis_hora';
-                const datasetData = sortedData.map(d => d[metricKey]);
-                const metaData = sortedData.map(() => ENV.META_PADRAO);
-
-                // Destroy old charts
-                if(this.charts.main) this.charts.main.destroy();
-                if(this.charts.pie) this.charts.pie.destroy();
-
-                // Main Bar Chart
-                const ctxMain = document.getElementById('mainChart').getContext('2d');
-                this.charts.main = new Chart(ctxMain, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Realizado',
-                                data: datasetData,
-                                backgroundColor: '#00D4AA',
-                                borderRadius: 4
-                            },
-                            {
-                                label: 'Meta',
-                                data: metaData,
-                                type: 'line',
-                                borderColor: '#94a3b8',
-                                borderDash: [5, 5],
-                                pointRadius: 0
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9'} }, x: { grid: { display: false } } }
-                    }
-                });
-
-                // Pie Chart (Distribution by Line)
-                const lineCount = {};
-                this.processedData.forEach(d => {
-                    if (d.LINHA_SEPARACAO) {
-                        lineCount[d.LINHA_SEPARACAO] = (lineCount[d.LINHA_SEPARACAO] || 0) + Number(d.QTDVOLUME);
-                    }
-                });
-
-                const ctxPie = document.getElementById('pieChart').getContext('2d');
-                this.charts.pie = new Chart(ctxPie, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(lineCount),
-                        datasets: [{
-                            data: Object.values(lineCount),
-                            backgroundColor: ['#00D4AA', '#00B4D8', '#0077B6', '#023047'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: { legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true } } }
-                    }
-                });
-            }
-        }
-
-        // Init App
-        const app = new DashboardApp();
-        document.addEventListener('DOMContentLoaded', () => app.init());
-
+        feather.replace();
     </script>
 </body>
 </html>

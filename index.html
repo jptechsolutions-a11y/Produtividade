@@ -17,28 +17,8 @@
 </head>
 <body class="bg-gray-100 font-sans">
 
-    <!-- Tela de Login (Simulada para estrutura) -->
-    <div id="loginContainer" class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2 style="color: var(--dark);">JP PRODUTIVIDADE</h2>
-                <p>Intelligence & Performance</p>
-            </div>
-            <form id="loginForm" class="auth-form">
-                <div class="form-group mb-4">
-                    <input type="text" id="username" placeholder="Usuário" class="w-full p-3 border rounded" required>
-                </div>
-                <div class="form-group mb-4">
-                    <input type="password" id="password" placeholder="Senha" class="w-full p-3 border rounded" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-full">ACESSAR PAINEL</button>
-            </form>
-            <div id="loginAlert" class="mt-4"></div>
-        </div>
-    </div>
-
-    <!-- Sistema Principal -->
-    <div id="mainSystem" class="flex h-screen hidden">
+    <!-- Sistema Principal (Carregamento Imediato) -->
+    <div id="mainSystem" class="flex h-screen">
         
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -57,7 +37,7 @@
                     <i data-feather="list" class="mr-3"></i> Tabela Analítica
                 </a>
                 <a href="#" class="nav-item flex items-center p-3 rounded-lg mt-auto text-red-400 hover:bg-gray-800" onclick="logout()">
-                    <i data-feather="log-out" class="mr-3"></i> Sair
+                    <i data-feather="refresh-cw" class="mr-3"></i> Recarregar
                 </a>
             </nav>
         </aside>

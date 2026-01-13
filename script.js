@@ -14,7 +14,7 @@ const AppState = {
         linha: 'all'
     },
     mode: 'volume', // 'volume' ou 'visitas'
-    user: null,
+    user: 'admin', // Usuário padrão para bypass do login
     columns: {
         'PRODUTIVO': { label: 'Produtivo', visible: true },
         'EQUIPE': { label: 'Equipe', visible: false },
@@ -34,8 +34,8 @@ let supabase = null;
 document.addEventListener('DOMContentLoaded', () => {
     initSupabase();
     
-    // Auth Listeners
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    // Login removido - Inicia carregamento direto
+    loadData();
     
     // Filtros Listeners
     document.getElementById('filterFilial').addEventListener('change', (e) => applyFilter('filial', e.target.value));
@@ -51,21 +51,6 @@ function initSupabase() {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     } else {
         console.warn("JP PRODUTIVIDADE: Rodando em modo MOCK (Sem chaves Supabase).");
-    }
-}
-
-// --- AUTENTICAÇÃO ---
-function handleLogin(e) {
-    e.preventDefault();
-    const user = document.getElementById('username').value;
-    // Simulação simples de login
-    if (user) {
-        AppState.user = user;
-        document.getElementById('loginContainer').classList.add('hidden');
-        document.getElementById('mainSystem').classList.remove('hidden');
-        document.getElementById('mainSystem').classList.add('flex');
-        
-        loadData(); // Inicia carregamento de dados
     }
 }
 

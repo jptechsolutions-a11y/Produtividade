@@ -1,7 +1,13 @@
 // --- CONFIGURAÇÃO ---
-// Para produção, adicione suas chaves aqui. Se vazias, o modo MOCK será ativado.
-const SUPABASE_URL = ""; 
-const SUPABASE_KEY = ""; 
+// As chaves são lidas das variáveis de ambiente (padrão Vercel/Next.js/Vite)
+// Se não encontrar (ex: rodando local sem env), o sistema entra em modo MOCK.
+const SUPABASE_URL = typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_URL 
+    ? process.env.NEXT_PUBLIC_SUPABASE_URL 
+    : ""; 
+
+const SUPABASE_KEY = typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY 
+    ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY 
+    : ""; 
 
 // --- STATE MANAGEMENT ---
 const AppState = {
@@ -48,9 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initSupabase() {
     if (SUPABASE_URL && SUPABASE_KEY) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Tenta inicializar apenas se as chaves existirem
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log("JP PRODUTIVIDADE: Conexão Supabase iniciada.");
+        } catch (e) {
+            console.error("Erro ao iniciar Supabase:", e);
+        }
     } else {
-        console.warn("JP PRODUTIVIDADE: Rodando em modo MOCK (Sem chaves Supabase).");
+        console.warn("JP PRODUTIVIDADE: Chaves não encontradas. Rodando em modo MOCK.");
     }
 }
 
